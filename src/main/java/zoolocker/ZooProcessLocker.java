@@ -38,7 +38,7 @@ public class ZooProcessLocker {
             ZooLockWatcher zooLockWatcher=new ZooLockWatcher(zkParam,sessionTimeout,root,lockName);
             zooLockWatcher.setLockData(new ZooLockData(1,Thread.currentThread()));
             ThreadMap.put(Thread.currentThread(),zooLockWatcher);
-            zooLockWatcher.lock();
+            zooLockWatcher.tryLock();
 
 
         }

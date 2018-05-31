@@ -69,18 +69,14 @@ public class ZooLockWatcher implements  Watcher,Lock {
 
     public boolean tryLock() {
         try {
-            String splitStr = "_lock_";
-            if (lockName.contains(splitStr)) {
-                throw new LockException("锁名有误");
-            }
-
-            currentLock = zk.create(root + "/" + lockName + splitStr, new byte[0],
+            String defineLock = "_lock_";
+            currentLock = zk.create(root + "/" + lockName + defineLock, new byte[0],
                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
             System.out.println(currentLock + " 已经创建");
             List<String> subNodes = zk.getChildren(root, false);
             List<String> lockObjects = new ArrayList<String>();
             for (String node : subNodes) {
-                String _node = node.split(splitStr)[0];
+                String _node = node.split(defineLock)[0];
                 if (_node.equals(lockName)) {
                     lockObjects.add(node);
                 }
