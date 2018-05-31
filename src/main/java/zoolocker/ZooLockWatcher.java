@@ -104,7 +104,6 @@ public class ZooLockWatcher implements  Watcher,Lock {
     public boolean tryLock(long timeout, TimeUnit unit) {
         try {
             if (this.tryLock()) {
-                System.out.println("success get the lock");
                 return true;
             }
             return waitForLock(preLock, timeout);
