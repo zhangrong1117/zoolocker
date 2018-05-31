@@ -45,7 +45,25 @@ public class ZooLockWatcher implements  Watcher,Lock {
     }
 
     public void process(WatchedEvent event) {
-        if (this.awaitCount != null) {
+        if (event.getType() != Event.EventType.NodeDeleted) {
+            throw new LockException("非法操作");
+        }
+        List<String> lockObjects = getLockNodes("_lock_");
+        Collections.sort(lockObjects);
+        if (!currentLock.equals(root + "/" + lockObjects.get(0))) {
+            String prevNode = currentLock.substring(currentLock.lastIndexOf("/") + 1);
+            preLock = lockObjects.get(Collections.binarySearch(lockObjects, prevNode) - 1);
+            try {
+                Stat stat = zk.exists(root + "/" + preLock, true);
+                if (stat == null) {
+                    this.awaitCount.countDown();
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (KeeperException e) {
+                e.printStackTrace();
+            }
+        } else if (this.awaitCount != null) {
             this.awaitCount.countDown();
         }
     }
@@ -58,7 +76,7 @@ public class ZooLockWatcher implements  Watcher,Lock {
             if (this.tryLock()) {
                 return;
             } else {
-                waitForLock(preLock,sessionTimeout);
+                wait(preLock,sessionTimeout);
             }
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -72,17 +90,8 @@ public class ZooLockWatcher implements  Watcher,Lock {
             String defineLock = "_lock_";
             currentLock = zk.create(root + "/" + lockName + defineLock, new byte[0],
                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
-            System.out.println(currentLock + " 已经创建");
-            List<String> subNodes = zk.getChildren(root, false);
-            List<String> lockObjects = new ArrayList<String>();
-            for (String node : subNodes) {
-                String _node = node.split(defineLock)[0];
-                if (_node.equals(lockName)) {
-                    lockObjects.add(node);
-                }
-            }
+            List<String> lockObjects=getLockNodes(defineLock);
             Collections.sort(lockObjects);
-            System.out.println(Thread.currentThread().getName() + " 的锁是 " + currentLock);
             if (currentLock.equals(root+ "/" + lockObjects.get(0))) {
                 return true;
             }
@@ -102,26 +111,45 @@ public class ZooLockWatcher implements  Watcher,Lock {
             if (this.tryLock()) {
                 return true;
             }
-            return waitForLock(preLock, timeout);
+            return wait(preLock, timeout);
         } catch (Exception e) {
             e.printStackTrace();
         }
         return false;
     }
 
-    // 等待锁
-    private boolean waitForLock(String prev, long waitTime) throws KeeperException, InterruptedException {
+
+    private boolean wait(String prev, long waitTime) throws KeeperException, InterruptedException {
         Stat stat = zk.exists(root + "/" + prev, true);
 
         if (stat != null) {
             System.out.println(Thread.currentThread().getName() + "等待锁 " + root + "/" + prev);
             this.awaitCount = new CountDownLatch(1);
-            // 计数等待，若等到前一个节点消失，则precess中进行countDown，停止等待，获取锁
             this.awaitCount.await(waitTime, TimeUnit.MILLISECONDS);
             this.awaitCount = null;
             System.out.println(Thread.currentThread().getName() + " 等到了锁");
         }
         return true;
+    }
+
+    public List<String> getLockNodes(String defineLock){
+
+        try {
+            List<String> subNodes = zk.getChildren(root, false);
+            List<String> lockObjects = new ArrayList<String>();
+            for (String node : subNodes) {
+                String _node = node.split(defineLock)[0];
+                if (_node.equals(lockName)) {
+                    lockObjects.add(node);
+                }
+            }
+            return lockObjects;
+        }catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (KeeperException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     public void unlock() {

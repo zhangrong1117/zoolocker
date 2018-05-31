@@ -23,6 +23,9 @@ public class ZooProcessLocker {
 
     public void realase(){
        ZooLockWatcher zooLockWatcher=ThreadMap.get(Thread.currentThread());
+       if (zooLockWatcher==null){
+           throw new ReleaseException(Thread.currentThread().getName()+"还未获得锁");
+       }
        if (!zooLockWatcher.getLockData().decreaseCount()){
            zooLockWatcher.unlock();
            ThreadMap.remove(Thread.currentThread());
@@ -37,11 +40,27 @@ public class ZooProcessLocker {
         else{
             ZooLockWatcher zooLockWatcher=new ZooLockWatcher(zkParam,sessionTimeout,root,lockName);
             zooLockWatcher.setLockData(new ZooLockData(1,Thread.currentThread()));
-            ThreadMap.put(Thread.currentThread(),zooLockWatcher);
             zooLockWatcher.tryLock();
-
-
+            ThreadMap.put(Thread.currentThread(),zooLockWatcher);
         }
         return true;
+    }
+
+    public int getSessionTimeout() {
+        return sessionTimeout;
+    }
+
+    public void setSessionTimeout(int sessionTimeout) {
+        this.sessionTimeout = sessionTimeout;
+    }
+
+    public class ReleaseException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+        public ReleaseException(String e){
+            super(e);
+        }
+        public ReleaseException(Exception e){
+            super(e);
+        }
     }
 }
