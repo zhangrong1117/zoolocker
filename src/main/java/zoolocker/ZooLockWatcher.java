@@ -1,6 +1,5 @@
 package zoolocker;
-import com.sun.org.apache.xerces.internal.util.SynchronizedSymbolTable;
-import com.sun.org.apache.xpath.internal.operations.Bool;
+
 import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.Stat;
 import java.io.IOException;
